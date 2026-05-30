@@ -1,0 +1,10 @@
+generated/
+.clawhub/
+_meta.json
+__pycache__/
+*.pyc
+*.bak
+image-ppt-workflow-workspace/
+templates/examples/*.png
+templates/examples/*.jpg
+!templates/examples/gen_images.py
