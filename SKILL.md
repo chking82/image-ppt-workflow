@@ -154,3 +154,18 @@ python3 scripts/merge_to_pptx.py --slides <项目>/slides/ --notes <项目>/spea
 | 12 | 企业项目管理 · 红蓝专业 | 珊瑚红+海军蓝、甘特图 | 项目汇报/进度跟踪 |
 | 13 | 企业架构 · 深蓝专业 | 深蓝主色、流程图 | 系统架构/组织管理 |
 | 14 | 温暖数据报告 · 生活洞察 | 暖白底+森林绿+圆角卡片 | MBA汇报/商业案例 |
+
+---
+
+## ❌ 硬门禁：画图必须通过提示词生成（2026-06-13 关哥拍板）
+
+**任何图都必须通过提示词让图像生成模型生成，不允许用代码画图**：
+
+- ❌ Python/PIL（Pillow、ImageDraw、ImageFont）
+- ❌ SVG、HTML、Canvas、matplotlib、PowerPoint shapes
+- ❌ 截图渲染
+- ❌ "AI 底图 + PIL 画字"路线（任何变体）
+
+**失败处理**：图像生成失败 → 改 prompt 重试 → 再次失败 → 上报用户，**不允许**用 PIL/SVG 等代码画图兜底。
+
+**适用范围**：本技能 (`image-ppt-workflow`) 及所有配套工作流（`gpt-image-ppt-workspace/`、`image-ppt-workflow-workspace/`、项目级脚本）。
