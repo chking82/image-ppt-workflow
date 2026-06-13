@@ -65,7 +65,7 @@ def _is_low_density_page(content: str) -> bool:
 def _extract_frame_kind(content: str) -> str:
     """从 prompt 中提取 frame_kind 标注"""
     pats = [
-        r'frame[_\s]kind[:\s]*[`"\']?([a-z_\-]+)[`"\']?',
+        r'(?:\*\*)?frame[_\s]kind(?:\*\*)?[:\s\uff1a]*[`"\']?([a-z_\-]+)[`"\']?',
         r'\u6846\u67b6[:\uff1a]\s*[`"\']?([^\s`"\'\n]{2,20})[`"\']?',
     ]
     for pat in pats:
@@ -157,7 +157,7 @@ def validate_prompt(prompt_path, template_colors, slide_num, total_slides, proje
     if body_matches:
         passed.append(f"\u2705 \u5305\u542b\u6b63\u6587/\u6807\u6ce8\u6587\u5b57 ({min(len(body_matches), 6)} \u6761)")
     else:
-        if slide_num in [1, 2, 3, 6, 11, 17, 19]:
+        if _is_low_density_page(content) or slide_num in [1, 2, 3, 6, 11, 17, 19]:
             warnings.append("\u26a0\ufe0f  \u5c01\u9762/\u76ee\u5f55/\u8fc7\u6e21\u9875/\u7ed3\u5c3e\u9875\u53ef\u80fd\u4e0d\u9700\u8981\u6b63\u6587")
         else:
             issues.append("\u274c \u7f3a\u5c11\u6b63\u6587\u6587\u5b57")
