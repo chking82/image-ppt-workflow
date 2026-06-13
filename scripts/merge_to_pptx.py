@@ -16,6 +16,7 @@ import argparse
 import glob
 import os
 import re
+import sys
 from pptx import Presentation
 from pptx.util import Inches, Emu
 
@@ -70,7 +71,25 @@ def main():
     parser.add_argument("--slides", required=True, help="幻灯片图片目录")
     parser.add_argument("--notes", required=True, help="speaker-notes.md 路径")
     parser.add_argument("--output", required=True, help="输出 PPTX 文件路径")
+    parser.add_argument("--require-manifest", help="manifest.json 路径 (传则校验, 缺页则拒绝合成)")
+    parser.add_argument("--prompts-dir", help="prompts/ 目录 (跟 manifest 对比用)")
     args = parser.parse_args()
+
+    # manifest 硬门禁
+    if args.require_manifest:
+        from pathlib import Path as _P
+        import subprocess as _sp
+        manifest_path = _P(args.require_manifest)
+        if not manifest_path.exists():
+            print(f"❌ manifest 不存在: {manifest_path}", file=sys.stderr)
+            sys.exit(1)
+        # 调用 manifest.py check
+        result = _sp.run([sys.executable, str(_P(__file__).parent / "manifest.py"),
+                          "check", str(manifest_path)], capture_output=True, text=True)
+        if result.returncode != 0:
+            print(f"❌ manifest 校验失败:", result.stdout, result.stderr, file=sys.stderr)
+            sys.exit(1)
+        print(f"✅ manifest 校验通过: {manifest_path}")
 
     # 获取所有图片，按文件名排序
     image_extensions = ("*.png", "*.jpg", "*.jpeg", "*.bmp", "*.gif")

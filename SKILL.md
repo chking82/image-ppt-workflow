@@ -11,8 +11,9 @@
 |------|------|
 | `scripts/setup-project.sh <name> [模板编号]` | 初始化项目目录、加载模板 |
 | `scripts/validate-prompts.py <项目目录>` | 校验每页 Prompt 是否符合模板规则 |
-| `scripts/generate.sh` | 单页生图（gpt-image-2-vip / nano-banana-2） |
-| `scripts/merge_to_pptx.py` | 合并图片+备注为 PPTX |
+| `scripts/manifest.py check/reconcile/reconcile-prompts <manifest>` | 校验 slides manifest 完整性（防退化）|
+| `scripts/generate.sh` | 单页生图（gpt-image-2-vip / nano-banana-2），自动登记 manifest |
+| `scripts/merge_to_pptx.py` | 合并图片+备注为 PPTX，支持 `--require-manifest` 硬门禁 |
 
 ## 工作流
 
@@ -50,6 +51,28 @@
 - 每页包含：类型、Beat、叙事目标、关键内容、视觉规格、版式建议
 - 同时输出 `narrative-arc.md`（beat 序列 + 信心拐点 + 呼吸页）
 
+### Step 4b: 内容厚度检查（⛔ 质量门禁，2026-06-13 引入）
+
+**借鉴自 GordenSun/GordenSuperPPTSkills §0**："排版太简单几乎都是因为内容太薄"。
+
+每页内容页的最低量化标准：
+
+| 项 | 最低要求 |
+|---|---|
+| 导语 | 1 句（含 2-3 个高亮关键词）|
+| 模块数 | ≥ 3 个并列模块（每模块 标题 + 2-3 要点 + 1 特大号指标）|
+| 信息点数 | ≥ 15 个文字信息点（推荐 20+）|
+| 底部横幅 | 1 条通栏总结（推荐）|
+
+**内容薄时的处理**：
+- 先做厚结构化拆解（把"上市"拆成 时间/募资额/意义/估值）
+- 不可编造数据
+- 不可仅靠放大字号填白
+
+**自动校验**（`validate-prompts.py` 已加密度检查，详见附录四）：
+- 信息点数 < 15 → 警告
+- < 10 → 报错
+
 ### Step 5: 审核大纲（⛔ 阻塞）
 展示每页标题和结构，让用户确认。可删页、调顺序、补商业闭环、调 beat 分配。
 用户确认后才进入 Step 6。
@@ -80,7 +103,11 @@
 ### Step 7: 生成图片
 使用 `scripts/generate.sh` 逐页生图：
 ```bash
-scripts/generate.sh --model gpt-image-2-vip --prompt "..." --ratio 2048x1152 --output slides/ --output-file "01-slide-cover.png"
+scripts/generate.sh --model gpt-image-2-vip --prompt "..." --ratio 2048x1152 \
+  --output <项目>/slides/ --output-file "01-slide-cover.png" \
+  --manifest <项目>/slides-manifest.json \
+  --prompt-file prompts/01-slide-cover.md \
+  --page 1 --project <项目名>
 ```
 
 **模型选择**：首选 `gpt-image-2-vip`（中文渲染最好），连续失败 3 次后降级 `nano-banana-2`。❌ 禁止用 `gpt-image-2`（非 vip）。
@@ -90,25 +117,115 @@ scripts/generate.sh --model gpt-image-2-vip --prompt "..." --ratio 2048x1152 --o
 ### Step 7b: 样稿确认（⛔ 阻塞，10 页以上必填）
 前 6 页生成后合成样稿 PPTX，发送给用户确认风格/文字可读性/视觉层级。确认通过后才生成剩余页面。
 
+```bash
+# 用 manifest 校验 + 合成
+python3 scripts/manifest.py check <项目>/slides-manifest.json
+python3 scripts/manifest.py reconcile <项目>/slides-manifest.json <项目>/slides/
+python3 scripts/merge_to_pptx.py \
+  --slides <项目>/slides/ \
+  --notes <项目>/speaker-notes.md \
+  --output <项目>/样稿.pptx \
+  --require-manifest <项目>/slides-manifest.json
+```
+
 ### Step 8: 生成演讲备注
 **AI 基于大纲手写口述稿**，写入 `speaker-notes.md`。要求：自然、口语化、有衔接。文档模式 30-60 秒/页，演讲模式 60-90 秒/页。
 
 > ⚠️ 备注不能依赖脚本生成，必须 AI 手写以确保质量。
 
-### Step 9: 合成 PPTX
+### Step 9: 合成 PPTX（⛔ manifest 硬门禁）
 ```bash
-python3 scripts/merge_to_pptx.py --slides <项目>/slides/ --notes <项目>/speaker-notes.md --output <项目>/<主题名称>.pptx
+python3 scripts/merge_to_pptx.py \
+  --slides <项目>/slides/ \
+  --notes <项目>/speaker-notes.md \
+  --output <项目>/<主题名称>.pptx \
+  --require-manifest <项目>/slides-manifest.json
 ```
+
+**没有 manifest → 拒绝合成**（2026-06-13 起的硬门禁）。这是防退化机制：保证每张图都有真实生成证据（model/generated_at/task_id 等），不靠代码画图或裁原图局部凑数。
+
 输出文件名基于主题命名，不能统一用 output.pptx。
 
 ### Step 10: 单页迭代
-用户要求修改某一页时：修改 prompt → `generate.sh --image` 基于原图编辑再生。
+用户要求修改某一页时：修改 prompt → `generate.sh --image` 基于原图编辑再生 → 重新走 manifest 登记（自动去重）。
 
 ### 交付前确认
 - PPTX 文件大小是否 ≤ 20MB？超出则按章节拆分为多个 Part
 - 每个 Part 保持内容完整性（章节不被切断）
 - 每个 Part 配有对应演讲备注
 - 成果直接发飞书，图片用 message+media，文件上传云空间发链接
+
+---
+
+## ❌ 硬门禁：画图必须通过提示词生成（2026-06-13 关哥拍板）
+
+**任何图都必须通过提示词让图像生成模型生成，不允许用代码画图**：
+
+- ❌ Python/PIL（Pillow、ImageDraw、ImageFont）
+- ❌ SVG、HTML、Canvas、matplotlib、PowerPoint shapes
+- ❌ 截图渲染
+- ❌ "AI 底图 + PIL 画字"路线（任何变体）
+
+**失败处理**：图像生成失败 → 改 prompt 重试 → 再次失败 → 上报用户，**不允许**用 PIL/SVG 等代码画图兜底。
+
+**适用范围**：本技能 (`image-ppt-workflow`) 及所有配套工作流（`gpt-image-ppt-workspace/`、`image-ppt-workflow-workspace/`、项目级脚本）。
+
+---
+
+## 📋 Slides Manifest（防退化机制，2026-06-13 引入）
+
+每张生图必须登记到 `slides-manifest.json`，**没有 manifest 不能合成 PPTX**。
+
+### generate.sh 新参数
+
+| 参数 | 作用 | 示例 |
+|---|---|---|
+| `--manifest <path>` | manifest.json 路径（必传）| `--manifest ${PROJ}/slides-manifest.json` |
+| `--prompt-file <path>` | 对应 prompt 文件路径，写到 manifest | `--prompt-file prompts/01-slide-cover.md` |
+| `--page <n>` | 页码，写到 manifest | `--page 1` |
+| `--project <name>` | 项目名，写到 manifest | `--project 2026-q3-strategy` |
+
+### manifest.json schema
+
+```json
+{
+  "version": "1.0",
+  "project": "<项目名>",
+  "created_at": "2026-06-13T18:55:00Z",
+  "slides": [
+    {
+      "page": 1,
+      "prompt_file": "prompts/01-slide-cover.md",
+      "generated_source": "slides/01-slide-cover.png",
+      "model": "gpt-image-2-vip",
+      "aspect_ratio": "2048x1152",
+      "generated_at": "2026-06-13T18:55:30Z",
+      "task_id": "grsai_xxx",
+      "status": "succeeded",
+      "file_size": 1234567
+    }
+  ]
+}
+```
+
+### manifest.py 校验脚本
+
+| 子命令 | 作用 |
+|---|---|
+| `manifest.py check <manifest.json>` | 校验字段完整性（缺 model/generated_at 等即报错）|
+| `manifest.py reconcile <manifest.json> <slides_dir>` | 对比 manifest 与 slides/ 目录（找孤儿/缺图）|
+| `manifest.py reconcile-prompts <manifest.json> <prompts_dir>` | 对比 manifest 与 prompts/ 目录（找孤儿 prompt）|
+
+### merge_to_pptx.py 硬门禁
+
+合成 PPTX 时传 `--require-manifest <manifest.json>` 即可：
+- manifest 不存在 → 拒绝合成（exit 1）
+- manifest 校验失败 → 拒绝合成（exit 1）
+- 不传 → 向后兼容（旧项目不强制）
+
+### 幂等性
+
+同一页（同一 `generated_source`）二次生成 → manifest 自动去重旧记录、写入新记录（更新 `generated_at`），不会重复登记。
 
 ---
 
@@ -155,17 +272,14 @@ python3 scripts/merge_to_pptx.py --slides <项目>/slides/ --notes <项目>/spea
 | 13 | 企业架构 · 深蓝专业 | 深蓝主色、流程图 | 系统架构/组织管理 |
 | 14 | 温暖数据报告 · 生活洞察 | 暖白底+森林绿+圆角卡片 | MBA汇报/商业案例 |
 
----
+## 附录四：validate-prompts.py 校验项（2026-06-13 扩展）
 
-## ❌ 硬门禁：画图必须通过提示词生成（2026-06-13 关哥拍板）
+新增**信息点密度检查**（借鉴 GordenSun §0）：
 
-**任何图都必须通过提示词让图像生成模型生成，不允许用代码画图**：
-
-- ❌ Python/PIL（Pillow、ImageDraw、ImageFont）
-- ❌ SVG、HTML、Canvas、matplotlib、PowerPoint shapes
-- ❌ 截图渲染
-- ❌ "AI 底图 + PIL 画字"路线（任何变体）
-
-**失败处理**：图像生成失败 → 改 prompt 重试 → 再次失败 → 上报用户，**不允许**用 PIL/SVG 等代码画图兜底。
-
-**适用范围**：本技能 (`image-ppt-workflow`) 及所有配套工作流（`gpt-image-ppt-workspace/`、`image-ppt-workflow-workspace/`、项目级脚本）。
+| 检查项 | 通过条件 | 失败动作 |
+|---|---|---|
+| 信息点数 | ≥ 15 | 警告；< 10 报错 |
+| 模块数 | ≥ 3 | 警告；< 2 报错 |
+| 中文文字完整 | prompt 包含全部页面文字 verbatim | 报错 |
+| 色彩来源 | 颜色 hex 必须在模板色彩系统里 | 警告 |
+| 内部术语 | 不出现 setup/tension/beat 等 | 警告 |

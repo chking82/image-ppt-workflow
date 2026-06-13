@@ -19,6 +19,10 @@ REPLY_TYPE="json"
 REFERENCE_IMAGES=()
 OUTPUT_DIR="./generated"
 TIMEOUT=300
+MANIFEST_PATH=""
+PROMPT_FILE=""
+PAGE_NUM=""
+PROJECT_NAME=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -32,6 +36,10 @@ while [[ $# -gt 0 ]]; do
     --output-file)    OUTPUT_FILE="$2"; shift 2 ;;
     --timeout|-t)     TIMEOUT="$2"; shift 2 ;;
     --base-url)       BASE_URL="$2"; shift 2 ;;
+    --manifest)       MANIFEST_PATH="$2"; shift 2 ;;
+    --prompt-file)    PROMPT_FILE="$2"; shift 2 ;;
+    --page)           PAGE_NUM="$2"; shift 2 ;;
+    --project)        PROJECT_NAME="$2"; shift 2 ;;
     --help|-h)
       echo "Usage: $0 --model MODEL --prompt PROMPT [OPTIONS]"
       echo "  --model, -m       模型名称 (默认: gpt-image-2-vip)"
@@ -44,6 +52,10 @@ while [[ $# -gt 0 ]]; do
       echo "  --output-file     直接指定输出文件名 (覆盖 OUTPUT_DIR)"
       echo "  --timeout, -t     超时秒数 (默认: 300)"
       echo "  --base-url        API 基础地址 (默认: 国内节点)"
+      echo "  --manifest        manifest.json 路径 (可选, 传则追加记录)"
+      echo "  --prompt-file     对应 prompt 文件路径 (可选, 写到 manifest)"
+      echo "  --page            页码 (可选, 写到 manifest)"
+      echo "  --project         项目名 (可选, 写到 manifest)"
       exit 0
       ;;
     *) echo "Unknown option: $1"; exit 1 ;;
@@ -56,6 +68,30 @@ if [[ -z "$PROMPT" ]]; then
 fi
 
 mkdir -p "$OUTPUT_DIR"
+
+
+# ─── 写入 manifest ───
+write_manifest() {
+  local file_path="$1"
+  local task_id_val="${2:-}"
+  local status_val="${3:-succeeded}"
+  if [[ -z "$MANIFEST_PATH" ]]; then return 0; fi
+  mkdir -p "$(dirname "$MANIFEST_PATH")"
+  local generated_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  local file_size="$(stat -c%s "$file_path" 2>/dev/null || stat -f%z "$file_path" 2>/dev/null || echo 0)"
+  local manifest_dir="$(dirname "$MANIFEST_PATH")"
+  local rel_path="${file_path#${manifest_dir%/}/}"
+  local new_entry
+  new_entry=$(jq -n     --arg page "${PAGE_NUM:-}"     --arg prompt_file "${PROMPT_FILE:-}"     --arg generated_source "$rel_path"     --arg model "$MODEL"     --arg aspect_ratio "$ASPECT_RATIO"     --arg generated_at "$generated_at"     --arg task_id "$task_id_val"     --arg status "$status_val"     --argjson file_size "$file_size"     '{page:($page|select(. != "")|tonumber // null), prompt_file:$prompt_file, generated_source:$generated_source, model:$model, aspect_ratio:$aspect_ratio, generated_at:$generated_at, task_id:$task_id, status:$status, file_size:$file_size}')
+  if [[ -f "$MANIFEST_PATH" ]]; then
+    local existing="$(jq -c --arg path "$rel_path" '.slides |= map(select(.generated_source != $path))' "$MANIFEST_PATH" 2>/dev/null || cat "$MANIFEST_PATH")"
+    echo "$existing" | jq --argjson entry "$new_entry" --arg project "${PROJECT_NAME:-}" --arg created_at "$generated_at" --arg version "1.0" '. + {version:$version, project:$project, created_at:(.created_at // $created_at), slides:((.slides // []) + [$entry])}' > "${MANIFEST_PATH}.tmp" && mv "${MANIFEST_PATH}.tmp" "$MANIFEST_PATH"
+  else
+    jq -n --argjson entry "$new_entry" --arg project "${PROJECT_NAME:-}" --arg created_at "$generated_at" --arg version "1.0" '{version:$version, project:$project, created_at:$created_at, slides:[$entry]}' > "$MANIFEST_PATH"
+  fi
+  echo "📋 manifest: $MANIFEST_PATH (+$rel_path)"
+}
+
 
 # 构建请求 JSON
 IMAGES_JSON="[]"
@@ -103,6 +139,7 @@ if [[ "$STATUS" == "succeeded" ]]; then
   curl -sL "$IMG_URL" -o "$FILENAME"
   echo "✅ 已保存: $FILENAME"
   echo "📎 URL: $IMG_URL"
+  write_manifest "$FILENAME" ""
 elif [[ "$STATUS" == "running" ]]; then
   TASK_ID=$(echo "$RESPONSE" | jq -r '.id')
   echo "⏳ 任务进行中 (ID: $TASK_ID)"
@@ -126,6 +163,7 @@ elif [[ "$STATUS" == "running" ]]; then
       curl -sL "$IMG_URL" -o "$FILENAME"
       echo "✅ 已保存: $FILENAME"
       echo "📎 URL: $IMG_URL"
+      write_manifest "$FILENAME" "$TASK_ID"
       exit 0
     elif [[ "$NEW_STATUS" == "failed" || "$NEW_STATUS" == "violation" ]]; then
       echo "❌ 生成失败: $NEW_STATUS"
