@@ -114,8 +114,69 @@ def validate_prompt(prompt_path, template_colors, slide_num, total_slides):
         issues.append("❌ 包含 'no text' 指令，与中文文字需求矛盾")
     else:
         passed.append("✅ 无矛盾指令")
-    
+
+    # 9. P1｜信息点密度检查（2026-06-13 引入，借鉴 GordenSun §0）
+    info_points = _count_info_points(content)
+    modules = _count_modules(content)
+    is_low_density = _is_low_density_page(content)
+    if is_low_density:
+        passed.append("ℹ️  低密度页（封面/目录/过渡/结尾），跳过密度检查")
+    else:
+        if info_points >= 15:
+            passed.append(f"✅ 信息点密度: {info_points}（≥ 15 合格）")
+        elif info_points >= 10:
+            warnings.append(f"⚠️  信息点密度: {info_points}（10-14 偏薄，建议加内容）")
+        else:
+            issues.append(f"❌ 信息点密度: {info_points}（< 10 太薄，必须加内容）")
+        if modules >= 3:
+            passed.append(f"✅ 并列模块数: {modules}（≥ 3 合格）")
+        elif modules >= 2:
+            warnings.append(f"⚠️  并列模块数: {modules}（偏少，建议 ≥ 3）")
+        else:
+            warnings.append(f"⚠️  并列模块数: {modules}（建议补充模块化结构）")
+
     return passed, warnings, issues
+
+
+
+
+# === 信息点密度检查 (P1, 2026-06-13) ===
+
+# 哪些页型对密度要求低（不强制 15+ 信息点）
+LOW_DENSITY_TYPES = {"封面", "cover", "目录", "toc", "过渡", "transition", "结尾", "ending", "谢谢", "thank"}
+
+def _count_info_points(content: str) -> int:
+    """统计 prompt 中包含的'信息点'数。
+    启发式：
+    1. 中文引号短语  '...中文...'  算 1 个
+    2. 英文括号短语  ("英文短语")      算 1 个
+    3. 数字+百分号  12% / 5,000      算 1 个
+    4. bullet 列表项  - xxx / * xxx  算 1 个
+    5. 关键词 label   「label」       算 1 个
+    """
+    n = 0
+    n += len(re.findall(r'["“][^"”]{2,60}[一-鿿][^"”]*["”]', content))
+    n += len(re.findall(r'\([^()]{3,80}\)', content))
+    n += len(re.findall(r'\d+\.?\d*[%‰人万]', content))
+    bullets = re.findall(r'(?:^|\n)\s*[-*•]\s+\S+', content)
+    n += len(bullets)
+    n += len(re.findall(r'「[^」]{2,40}」', content))
+    return n
+
+
+def _count_modules(content: str) -> int:
+    """统计并列模块数。启发式：匹配 Module/Card/Section/Column 关键词后的标题。"""
+    pat = r'(?:Module|Card|Section|Column|Panel|模块|卡片|列|面板)[\s\S]{0,150}?'
+    matches = re.findall(pat + r'(?:title|heading|["“][^"”]{2,30})', content, re.IGNORECASE)
+    return len(matches)
+
+
+def _is_low_density_page(content: str) -> bool:
+    """判断是否低密度页（封面/目录/过渡/结尾），跳过严格密度检查。"""
+    for kw in LOW_DENSITY_TYPES:
+        if kw.lower() in content.lower():
+            return True
+    return False
 
 
 def main():
