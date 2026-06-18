@@ -47,16 +47,38 @@ def load_manifest(path: Path) -> Dict[str, Any]:
     return data
 
 
+def _is_bad_relative_path(value: str) -> bool:
+    p = Path(value)
+    return p.is_absolute() or ".." in p.parts or value.strip() != value or not value.strip()
+
+
 def cmd_check(manifest: Path) -> int:
     data = load_manifest(manifest)
     slides = data["slides"]
     print(f"📋 {manifest.name}: {len(slides)} 张图")
     issues: List[str] = []
     seen_sources: set = set()
+    required_fields = (
+        "page", "prompt_file", "generated_source", "model",
+        "aspect_ratio", "generated_at", "status", "file_size",
+    )
     for idx, slide in enumerate(slides, start=1):
-        for required in ("generated_source", "model", "generated_at"):
-            if not slide.get(required):
+        for required in required_fields:
+            if slide.get(required) in (None, ""):
                 issues.append(f"slide #{idx}: 缺 {required}")
+        for path_field in ("prompt_file", "generated_source"):
+            val = str(slide.get(path_field, ""))
+            if val and _is_bad_relative_path(val):
+                issues.append(f"slide #{idx}: {path_field} 必须是项目内相对路径，实际为 '{val}'")
+        page = slide.get("page")
+        if not isinstance(page, int) or page <= 0:
+            issues.append(f"slide #{idx}: page 必须是正整数")
+        status = slide.get("status")
+        if status != "succeeded":
+            issues.append(f"slide #{idx}: status 必须是 succeeded，实际为 '{status}'")
+        file_size = slide.get("file_size")
+        if not isinstance(file_size, int) or file_size <= 0:
+            issues.append(f"slide #{idx}: file_size 必须是正整数")
         src = slide.get("generated_source")
         if src in seen_sources:
             issues.append(f"slide #{idx}: 重复 generated_source '{src}'")
@@ -67,7 +89,6 @@ def cmd_check(manifest: Path) -> int:
         return _die(f"manifest 不通过校验 ({len(issues)} 个问题)")
     _ok("manifest 校验通过")
     return 0
-
 
 def cmd_reconcile(manifest: Path, slides_dir: Path) -> int:
     data = load_manifest(manifest)

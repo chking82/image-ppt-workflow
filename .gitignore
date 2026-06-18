@@ -6,3 +6,6 @@ __pycache__/
 *.bak
 image-ppt-workflow-workspace/
 templates/examples/*.png
+
+# Example images: publish JPG only
+templates/examples/**/*.png

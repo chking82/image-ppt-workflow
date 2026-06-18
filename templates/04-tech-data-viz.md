@@ -89,7 +89,105 @@
 - **连接线与节点**：流程图连接线带流动光效曲线，节点为发光圆点或六边形
 - **数据光路**：多条光路（不同颜色）并行展示数据分流，增强动态感
 
+
+## 可见文案规则（硬要求，2026-06-16）
+
+> prompt 可以用英文描述设计意图，但**画面上会出现的文字必须中文优先**。这是模板内容规则，不只是校验器规则。
+
+- 画面中所有标题、正文、标注、图例、坐标轴、页眉、页脚、目录、章节名、按钮/标签文字，默认必须使用中文。
+- 英文只允许作为必要专业缩写出现，例如 AI / API / GPU / KPI / ROI / Q1-Q4，并且必须处在中文语境内。
+- 禁止把英文风格词画到页面中：CONTENTS、ISSUE、SECTION、VOL、THANKS、Executive insight、Roadmap、Abstract、Strategy、Report 等都必须改成中文。
+- 可见文字字段（Title / Subtitle / label / caption / footer / masthead / folio / axis / legend 等）的引号内容必须中文优先。
+- “英文杂志感 / 咨询感 / 科技感”必须通过版式、字体、间距、图形语言体现，不能靠英文单词体现。
+
+
+## 本模板不可混淆 DNA
+
+### 一句话定位
+用深色科技界面、霓虹数据流和玻璃拟态表达未来感。
+
+### 必须出现的视觉锚点
+- 深色背景、电光蓝/青色霓虹、玻璃拟态、线路/网格/粒子/芯片感。
+- 适合 AI、算力、平台、数据流、监控中心等科技主题。
+- 可见文案中文化，AI/GPU/API 等缩写允许但要有中文语境。
+
+### 风格强化描述
+- 画面必须首先呈现“深色科技界面感”：像数据中枢、算力平台、AI 控制台，而不是普通办公页面。
+- 霓虹蓝、青色光效、玻璃拟态、网格、粒子、芯片纹理和数据流是核心视觉语言。
+- 信息可以有层级和复杂度，但必须像在夜色屏幕里发光，形成强烈未来感和技术压迫感。
+
+### 页面级锚点
+- 封面：霓虹主视觉 + 中文科技标题 + 玻璃拟态数字/芯片。
+- 目录：发光节点/数据路径形成章节。
+- 内容页：分层数据流、网络拓扑或发光指标图。
+- 过渡页：超大数字/节点门，低透明电路背景。
+- 结尾页：中文结语 + 微弱数据光点。
+
+
 ## 页面类型模板
+
+
+### ❌ 强制禁止（全模板通用，2026-06-15 引入，秦始皇复盘卡 #7）
+
+> 下列负向约束与"特殊页硬规则"同级生效。每张 prompt 的结尾推荐加一段 `- Forbidden:` 复述。
+
+- ❌ 禁止在画面上出现色值标注、`palette: #XXXXXX`、`under X%` 等设计稿元数据样式（被 nano-banana 当文字渲染，会在画面上显示成"色卡""百分比"）
+- ❌ 禁止把 prompt 里的结构指令（如"小标题""正文""卡片""模块"）当作画面元素渲染成色块/标签/分隔条
+- ❌ 禁止堆叠超过特殊页上限的卡片/模块数量：
+  - 封面 ≤ 2（封面应该大开大合）
+  - 目录 ≤ 4
+  - 过渡 ≤ 1（过渡页只放章节编号 + 标题）
+  - 结尾 ≤ 2
+- ❌ 禁止特殊页混用内容页 frame_kind：
+  - 封面只能用 `hero_poster` / `title_poster` / `cover_poster`
+  - 目录只能用 `toc_list_illustration` / `toc_list` / `toc_illustration`
+  - 过渡只能用 `chapter_divider`（含 5 个 alias: `chapter_gate` / `symbolic_gate` / `mystery_gate` / `transition_gate` / `section_divider`）
+  - 结尾只能用 `closing_poster` / `closing_poster_centered` / `thank_you_poster`
+  - 内容页只能用 `mobius_ring` / `bento_grid` / `concentric_radar` / `fishbone` / `funnel` / `hub_spoke` / `pyramid` / `timeline_milestone` / `layered_architecture` / `kpi_rail` / `map_locator` / `house_architecture` / `dna_helix` / `step_cards` 这 14 个
+- ❌ 禁止出现水印、二维码、品牌 Logo 文本（除非模板明确允许）
+- ❌ 禁止在内容页出现"调色板 / 色卡 / 品牌指南"等设计元数据样式
+- ❌ 禁止空白画布（每张图必须有可见主体，不能整页纯色）
+- ❌ 禁止在 prompt body 里写 `setup / tension / beat / action / proof` 等内部编排术语
+
+每张 prompt 文件结尾应复述：
+```
+- Forbidden:
+  - no palette swatches, no hex color labels, no "under X%" usage notes
+  - no design-metadata watermarks
+  - no more than N cards/modules (N 按页型取上限)
+  - no mixing special-page frame_kinds with content-page frame_kinds
+```
+
+
+### 特殊页硬规则（全模板通用，2026-06-15）
+
+> 下面 4 类特殊页优先服从页面类型契约，再服从内容表达。不要把内容页框架套到特殊页上。
+
+#### 封面页契约
+- 推荐 frame_kind: `hero_poster`
+- 必须：一个主视觉、一个主标题、一个副标题/题跋、一个印章或品牌标记
+- 必须：大面积留白，标题区域不能被信息卡片挤占
+- 禁止：3 个以上信息卡片、数据模块、KPI rail、流程图、地图定位、bento grid、dashboard
+
+#### 目录页契约
+- 推荐 frame_kind: `toc_list_illustration`
+- 必须：左侧章节列表，右侧大面积插画/纹样/留白
+- 每个章节只放：编号 + 短标题 + 可选小图标
+- 禁止：把目录做成复杂 dashboard、地图页、数据页、正文内容页
+
+#### 过渡页契约
+- 推荐 frame_kind: `chapter_divider`
+- 必须：居中超大章节编号（占画面 25-40% 高度）
+- 必须：章节标题在编号下方，短句，不放多段正文
+- 必须：大面积低透明背景（山水/祥云/几何纹样/品牌符号等，10-18% opacity）
+- 必须：像“呼吸页”，而不是内容页
+- 禁止：左右分栏、三栏卡片、流程图、地图、超过 2 条正文说明、内容页式信息堆叠
+
+#### 结尾页契约
+- 推荐 frame_kind: `closing_poster`
+- 必须：居中结束语或 slogan、底部印章/Logo、淡纹样装饰
+- 禁止：新增章节、复杂图表、信息卡片堆叠、dashboard
+
 
 ### 封面页
 - 超大标题（纯白，居中，带霓虹外发光）

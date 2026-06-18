@@ -75,21 +75,41 @@ def main():
     parser.add_argument("--prompts-dir", help="prompts/ 目录 (跟 manifest 对比用)")
     args = parser.parse_args()
 
-    # manifest 硬门禁
+    from pathlib import Path as _P
+    import subprocess as _sp
+
+    if _P(args.output).name == "output.pptx" and os.environ.get("IMAGE_PPT_ALLOW_GENERIC_OUTPUT") != "1":
+        print("❌ 输出文件名不能使用 output.pptx，请使用基于主题的文件名", file=sys.stderr)
+        sys.exit(1)
+
+    # manifest 硬门禁：正式流程必须提供；如需旧项目调试，显式设置 IMAGE_PPT_ALLOW_NO_MANIFEST=1。
+    if not args.require_manifest and os.environ.get("IMAGE_PPT_ALLOW_NO_MANIFEST") != "1":
+        print("❌ 正式流程必须传 --require-manifest slides-manifest.json", file=sys.stderr)
+        sys.exit(1)
+
     if args.require_manifest:
-        from pathlib import Path as _P
-        import subprocess as _sp
         manifest_path = _P(args.require_manifest)
         if not manifest_path.exists():
             print(f"❌ manifest 不存在: {manifest_path}", file=sys.stderr)
             sys.exit(1)
-        # 调用 manifest.py check
-        result = _sp.run([sys.executable, str(_P(__file__).parent / "manifest.py"),
-                          "check", str(manifest_path)], capture_output=True, text=True)
-        if result.returncode != 0:
-            print(f"❌ manifest 校验失败:", result.stdout, result.stderr, file=sys.stderr)
-            sys.exit(1)
-        print(f"✅ manifest 校验通过: {manifest_path}")
+        manifest_py = _P(__file__).parent / "manifest.py"
+        checks = [
+            [sys.executable, str(manifest_py), "check", str(manifest_path)],
+            [sys.executable, str(manifest_py), "reconcile", str(manifest_path), args.slides],
+        ]
+        prompts_dir = args.prompts_dir or "prompts"
+        if _P(prompts_dir).exists():
+            checks.append([sys.executable, str(manifest_py), "reconcile-prompts", str(manifest_path), prompts_dir])
+        for cmd in checks:
+            result = _sp.run(cmd, capture_output=True, text=True)
+            if result.returncode != 0:
+                print("❌ manifest 门禁失败:", " ".join(cmd), file=sys.stderr)
+                if result.stdout:
+                    print(result.stdout, file=sys.stderr)
+                if result.stderr:
+                    print(result.stderr, file=sys.stderr)
+                sys.exit(1)
+        print(f"✅ manifest 门禁通过: {manifest_path}")
 
     # 获取所有图片，按文件名排序
     image_extensions = ("*.png", "*.jpg", "*.jpeg", "*.bmp", "*.gif")

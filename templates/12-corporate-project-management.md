@@ -67,7 +67,106 @@
 - **图标**：扁平图标，白色放在彩色圆形背景内
 - **3D 预览**：封面可放置 3D 透视堆叠的幻灯片预览展示模板效果
 
+
+## 可见文案规则（硬要求，2026-06-16）
+
+> prompt 可以用英文描述设计意图，但**画面上会出现的文字必须中文优先**。这是模板内容规则，不只是校验器规则。
+
+- 画面中所有标题、正文、标注、图例、坐标轴、页眉、页脚、目录、章节名、按钮/标签文字，默认必须使用中文。
+- 英文只允许作为必要专业缩写出现，例如 AI / API / GPU / KPI / ROI / Q1-Q4，并且必须处在中文语境内。
+- 禁止把英文风格词画到页面中：CONTENTS、ISSUE、SECTION、VOL、THANKS、Executive insight、Roadmap、Abstract、Strategy、Report 等都必须改成中文。
+- 可见文字字段（Title / Subtitle / label / caption / footer / masthead / folio / axis / legend 等）的引号内容必须中文优先。
+- “英文杂志感 / 咨询感 / 科技感”必须通过版式、字体、间距、图形语言体现，不能靠英文单词体现。
+
+
+## 本模板不可混淆 DNA
+
+### 一句话定位
+用甘特、里程碑、状态灯和责任人表达 PMO 项目管理。
+
+### 必须出现的视觉锚点
+- 必须像 PMO 项目管理页：甘特、里程碑、状态灯、看板、负责人、风险闭环。
+- 红色表示风险/延期/关键节点；蓝色表示正常/基准/已完成。
+- 圆角条形、时间轴、阶段标签是核心。
+
+### 风格强化描述
+- 画面必须首先呈现“PMO 项目战情室感”：进度、节点、责任、风险一眼可查。
+- 甘特图、里程碑、状态灯、负责人、截止日期、风险闭环和下一步事项是核心视觉语言。
+- 页面要有清晰的时间方向和执行秩序，蓝色表示基准/正常/已完成，红色表示风险/延期/关键阻塞。
+- 视觉气质是可追踪、可问责、可推进，所有信息都服务于项目交付闭环。
+
+### 页面级锚点
+- 封面：一条大甘特/里程碑路线贯穿页面。
+- 目录：四个阶段节点，像项目计划表。
+- 内容页：甘特图 + 风险状态 + 负责人/截止日期。
+- 过渡页：章节编号放在时间轴当前节点上。
+- 结尾页：项目收口状态和下一步中文事项。
+
+
 ## 页面类型模板
+
+
+### ❌ 强制禁止（全模板通用，2026-06-15 引入，秦始皇复盘卡 #7）
+
+> 下列负向约束与"特殊页硬规则"同级生效。每张 prompt 的结尾推荐加一段 `- Forbidden:` 复述。
+
+- ❌ 禁止在画面上出现色值标注、`palette: #XXXXXX`、`under X%` 等设计稿元数据样式（被 nano-banana 当文字渲染，会在画面上显示成"色卡""百分比"）
+- ❌ 禁止把 prompt 里的结构指令（如"小标题""正文""卡片""模块"）当作画面元素渲染成色块/标签/分隔条
+- ❌ 禁止堆叠超过特殊页上限的卡片/模块数量：
+  - 封面 ≤ 2（封面应该大开大合）
+  - 目录 ≤ 4
+  - 过渡 ≤ 1（过渡页只放章节编号 + 标题）
+  - 结尾 ≤ 2
+- ❌ 禁止特殊页混用内容页 frame_kind：
+  - 封面只能用 `hero_poster` / `title_poster` / `cover_poster`
+  - 目录只能用 `toc_list_illustration` / `toc_list` / `toc_illustration`
+  - 过渡只能用 `chapter_divider`（含 5 个 alias: `chapter_gate` / `symbolic_gate` / `mystery_gate` / `transition_gate` / `section_divider`）
+  - 结尾只能用 `closing_poster` / `closing_poster_centered` / `thank_you_poster`
+  - 内容页只能用 `mobius_ring` / `bento_grid` / `concentric_radar` / `fishbone` / `funnel` / `hub_spoke` / `pyramid` / `timeline_milestone` / `layered_architecture` / `kpi_rail` / `map_locator` / `house_architecture` / `dna_helix` / `step_cards` 这 14 个
+- ❌ 禁止出现水印、二维码、品牌 Logo 文本（除非模板明确允许）
+- ❌ 禁止在内容页出现"调色板 / 色卡 / 品牌指南"等设计元数据样式
+- ❌ 禁止空白画布（每张图必须有可见主体，不能整页纯色）
+- ❌ 禁止在 prompt body 里写 `setup / tension / beat / action / proof` 等内部编排术语
+
+每张 prompt 文件结尾应复述：
+```
+- Forbidden:
+  - no palette swatches, no hex color labels, no "under X%" usage notes
+  - no design-metadata watermarks
+  - no more than N cards/modules (N 按页型取上限)
+  - no mixing special-page frame_kinds with content-page frame_kinds
+```
+
+
+### 特殊页硬规则（全模板通用，2026-06-15）
+
+> 下面 4 类特殊页优先服从页面类型契约，再服从内容表达。不要把内容页框架套到特殊页上。
+
+#### 封面页契约
+- 推荐 frame_kind: `hero_poster`
+- 必须：一个主视觉、一个主标题、一个副标题/题跋、一个印章或品牌标记
+- 必须：大面积留白，标题区域不能被信息卡片挤占
+- 禁止：3 个以上信息卡片、数据模块、KPI rail、流程图、地图定位、bento grid、dashboard
+
+#### 目录页契约
+- 推荐 frame_kind: `toc_list_illustration`
+- 必须：左侧章节列表，右侧大面积插画/纹样/留白
+- 每个章节只放：编号 + 短标题 + 可选小图标
+- 禁止：把目录做成复杂 dashboard、地图页、数据页、正文内容页
+
+#### 过渡页契约
+- 推荐 frame_kind: `chapter_divider`
+- 必须：居中超大章节编号（占画面 25-40% 高度）
+- 必须：章节标题在编号下方，短句，不放多段正文
+- 必须：大面积低透明背景（山水/祥云/几何纹样/品牌符号等，10-18% opacity）
+- 必须：像“呼吸页”，而不是内容页
+- 禁止：左右分栏、三栏卡片、流程图、地图、超过 2 条正文说明、内容页式信息堆叠
+
+#### 结尾页契约
+- 推荐 frame_kind: `closing_poster`
+- 必须：居中结束语或 slogan、底部印章/Logo、淡纹样装饰
+- 禁止：新增章节、复杂图表、信息卡片堆叠、dashboard
+
 
 ### 封面页
 - 左侧 60%：珊瑚红 `#E65B5E` 全屏色块

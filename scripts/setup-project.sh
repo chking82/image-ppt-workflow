@@ -4,8 +4,8 @@
 
 set -euo pipefail
 
-WORKSPACE_DIR="$(cd "$(dirname "$0")/.." && pwd)/image-ppt-workflow-workspace"
 SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+WORKSPACE_DIR="${IMAGE_PPT_WORKSPACE:-${HOME}/image-ppt-workflow-workspace}"
 TODAY=$(date +%Y-%m-%d)
 
 PROJECT_NAME="${1:?用法: bash scripts/setup-project.sh <project-name> [template-number]}"
@@ -18,12 +18,14 @@ mkdir -p "${PROJECT_DIR}"/{prompts,slides}
 
 # 如果有 template 编号，加载对应模板
 if [[ -n "$TEMPLATE_NUM" ]]; then
-    TEMPLATE_FILE="${SKILL_DIR}/templates/$(printf '%02d' "$TEMPLATE_NUM")-"*.md
-    if [[ -f "$TEMPLATE_FILE" ]]; then
+    TEMPLATE_PATTERN="${SKILL_DIR}/templates/$(printf '%02d' "$((10#$TEMPLATE_NUM))")-"*.md
+    TEMPLATE_MATCHES=( $TEMPLATE_PATTERN )
+    if [[ ${#TEMPLATE_MATCHES[@]} -gt 0 && -f "${TEMPLATE_MATCHES[0]}" ]]; then
+        TEMPLATE_FILE="${TEMPLATE_MATCHES[0]}"
         cp "$TEMPLATE_FILE" "${PROJECT_DIR}/selected-template.md"
         echo "✅ 已加载模板: $(basename "$TEMPLATE_FILE")"
     else
-        echo "❌ 模板不存在: $TEMPLATE_FILE"
+        echo "❌ 模板不存在: $TEMPLATE_PATTERN"
         exit 1
     fi
 fi

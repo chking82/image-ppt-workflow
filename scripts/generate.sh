@@ -13,8 +13,8 @@ API_KEY="${GRSAI_API_KEY:?请设置 GRSAI_API_KEY}"
 
 MODEL="gpt-image-2-vip"
 PROMPT=""
-ASPECT_RATIO="3840x2160"
-IMAGE_SIZE="4K"
+ASPECT_RATIO="2048x1152"
+IMAGE_SIZE="2K"
 REPLY_TYPE="json"
 REFERENCE_IMAGES=()
 OUTPUT_DIR="./generated"
@@ -44,18 +44,18 @@ while [[ $# -gt 0 ]]; do
       echo "Usage: $0 --model MODEL --prompt PROMPT [OPTIONS]"
       echo "  --model, -m       模型名称 (默认: gpt-image-2-vip)"
       echo "  --prompt, -p      提示词 (必填)"
-      echo "  --ratio, -r       比例/尺寸 (默认: 3840x2160)"
-      echo "  --quality, -q     分辨率: 1K/2K/4K (默认: 4K)"
+      echo "  --ratio, -r       比例/尺寸 (默认: 2048x1152)"
+      echo "  --quality, -q     分辨率: 1K/2K/4K (默认: 2K)"
       echo "  --reply-type      json/stream/async (默认: json)"
       echo "  --image, -i       参考图 URL 或 base64 (可多次传)"
       echo "  --output, -o      输出目录 (默认: ./generated)"
       echo "  --output-file     直接指定输出文件名 (覆盖 OUTPUT_DIR)"
       echo "  --timeout, -t     超时秒数 (默认: 300)"
       echo "  --base-url        API 基础地址 (默认: 国内节点)"
-      echo "  --manifest        manifest.json 路径 (可选, 传则追加记录)"
-      echo "  --prompt-file     对应 prompt 文件路径 (可选, 写到 manifest)"
-      echo "  --page            页码 (可选, 写到 manifest)"
-      echo "  --project         项目名 (可选, 写到 manifest)"
+      echo "  --manifest        manifest.json 路径 (正式流程必填，项目内相对路径)"
+      echo "  --prompt-file     对应 prompt 文件路径 (正式流程必填，项目内相对路径)"
+      echo "  --page            页码 (正式流程必填)"
+      echo "  --project         项目名 (正式流程必填)"
       exit 0
       ;;
     *) echo "Unknown option: $1"; exit 1 ;;
@@ -65,6 +65,33 @@ done
 if [[ -z "$PROMPT" ]]; then
   echo "❌ --prompt 是必填参数" >&2
   exit 1
+fi
+
+is_bad_rel_path() {
+  local p="$1"
+  [[ "$p" == /* || "$p" == *".."* ]]
+}
+
+# 正式工作流要求 manifest 硬门禁；如需一次性调试，显式设置 IMAGE_PPT_ALLOW_NO_MANIFEST=1。
+if [[ -z "$MANIFEST_PATH" && "${IMAGE_PPT_ALLOW_NO_MANIFEST:-}" != "1" ]]; then
+  echo "❌ --manifest 是正式流程必填参数；如需临时调试，设置 IMAGE_PPT_ALLOW_NO_MANIFEST=1" >&2
+  exit 1
+fi
+
+if [[ -n "$MANIFEST_PATH" ]]; then
+  for required_name in MANIFEST_PATH PROMPT_FILE PAGE_NUM PROJECT_NAME; do
+    if [[ -z "${!required_name:-}" ]]; then
+      echo "❌ manifest 模式下缺少必填参数: $required_name" >&2
+      echo "   需要同时传 --manifest --prompt-file --page --project" >&2
+      exit 1
+    fi
+  done
+  for path_value in "$MANIFEST_PATH" "$PROMPT_FILE" "$OUTPUT_DIR" "${OUTPUT_FILE:-}"; do
+    if [[ -n "$path_value" ]] && is_bad_rel_path "$path_value"; then
+      echo "❌ manifest 模式下路径必须是项目内相对路径，禁止绝对路径或 '..': $path_value" >&2
+      exit 1
+    fi
+  done
 fi
 
 mkdir -p "$OUTPUT_DIR"
@@ -79,8 +106,7 @@ write_manifest() {
   mkdir -p "$(dirname "$MANIFEST_PATH")"
   local generated_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   local file_size="$(stat -c%s "$file_path" 2>/dev/null || stat -f%z "$file_path" 2>/dev/null || echo 0)"
-  local manifest_dir="$(dirname "$MANIFEST_PATH")"
-  local rel_path="${file_path#${manifest_dir%/}/}"
+  local rel_path="${file_path#./}"
   local new_entry
   new_entry=$(jq -n     --arg page "${PAGE_NUM:-}"     --arg prompt_file "${PROMPT_FILE:-}"     --arg generated_source "$rel_path"     --arg model "$MODEL"     --arg aspect_ratio "$ASPECT_RATIO"     --arg generated_at "$generated_at"     --arg task_id "$task_id_val"     --arg status "$status_val"     --argjson file_size "$file_size"     '{page:($page|select(. != "")|tonumber // null), prompt_file:$prompt_file, generated_source:$generated_source, model:$model, aspect_ratio:$aspect_ratio, generated_at:$generated_at, task_id:$task_id, status:$status, file_size:$file_size}')
   if [[ -f "$MANIFEST_PATH" ]]; then
