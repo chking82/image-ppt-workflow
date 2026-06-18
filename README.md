@@ -86,7 +86,7 @@ python3 "$SKILL_DIR"/scripts/merge_to_pptx.py \
 
 `scripts/import-template-from-image.sh` 不是一键入库脚本，只是候选模板导入流程说明。依据参考图片生成新模板前，必须先校验它与当前 active 模板（`01 02 03 04 05 06 07 08 09 10 11 12 13`）是否存在明显、可迁移的风格差异。
 
-如果只是配色、行业、主题、素材或单页构图变体，禁止新增一级模板，应归入最接近的现有模板 mode。只有通过差异校验、候选模板 markdown 全文审核、6 类样图（cover / toc / content / data / transition / closing）飞书审核，并获得关哥明确确认后，才允许进入 live 模板库并更新 README。候选模板文件未审核通过前，不得写入 `templates/` live 目录。
+如果只是配色、行业、主题、素材或单页构图变体，禁止新增一级模板，应归入最接近的现有模板 mode。只有通过差异校验、候选模板 markdown 全文审核、6 类样图（cover / toc / content / data / transition / closing）飞书审核，并获得用户明确确认后，才允许进入 live 模板库并更新 README。候选模板文件未审核通过前，不得写入 `templates/` live 目录。
 模板 markdown 正文只允许正向描述本模板 DNA；“与现有模板的边界/不是某模板”等差异对比只放差异校验报告，不写入正式模板文件。
 
 
