@@ -82,6 +82,25 @@ def main():
         print("❌ 输出文件名不能使用 output.pptx，请使用基于主题的文件名", file=sys.stderr)
         sys.exit(1)
 
+    # 输出落点硬门禁：PPTX 必须落在项目目录内（项目根 = slides 目录的父目录）。
+    # 防止 cwd 漂移导致最终 PPTX 落到 workspace 根目录或其他位置。
+    # 旧项目/特殊情况显式设置 IMAGE_PPT_ALLOW_OUTSIDE_PROJECT=1 可绕过。
+    if os.environ.get("IMAGE_PPT_ALLOW_OUTSIDE_PROJECT") != "1":
+        project_root = _P(args.slides).resolve().parent
+        output_dir = _P(args.output).resolve().parent
+        try:
+            output_dir.relative_to(project_root)
+        except ValueError:
+            print(
+                f"❌ 输出落点越界：--output 必须在项目目录内\n"
+                f"   项目根 (slides 父目录): {project_root}\n"
+                f"   当前输出目录:          {output_dir}\n"
+                f"   请把 --output 指向项目目录内，例如 {project_root}/<主题名>.pptx\n"
+                f"   （确需越界请显式设置 IMAGE_PPT_ALLOW_OUTSIDE_PROJECT=1）",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
     # manifest 硬门禁：正式流程必须提供；如需旧项目调试，显式设置 IMAGE_PPT_ALLOW_NO_MANIFEST=1。
     if not args.require_manifest and os.environ.get("IMAGE_PPT_ALLOW_NO_MANIFEST") != "1":
         print("❌ 正式流程必须传 --require-manifest slides-manifest.json", file=sys.stderr)

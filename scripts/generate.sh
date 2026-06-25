@@ -8,6 +8,16 @@
 # ============================================================
 set -euo pipefail
 
+# --- 自动加载 workspace/.env（环境变量已存在则不覆盖）---
+# 注意: 临时关闭 errexit，避免 .env 中命令替换行(如 printenv 空值)在 set -e 下中断加载
+if [[ -z "${GRSAI_API_KEY:-}" ]]; then
+  for envf in "$HOME/.openclaw/workspace/.env" "$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." 2>/dev/null && pwd)/.env"; do
+    if [[ -f "$envf" ]]; then
+      set +e; set -a; . "$envf" 2>/dev/null; set +a; set -e
+    fi
+  done
+fi
+
 BASE_URL="${GRSAI_BASE_URL:-https://grsai.dakka.com.cn}"
 API_KEY="${GRSAI_API_KEY:?请设置 GRSAI_API_KEY}"
 

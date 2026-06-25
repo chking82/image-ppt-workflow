@@ -1,3 +1,13 @@
+---
+name: image-ppt-workflow
+description: 制作 PPT / 幻灯片 / 汇报材料的默认工作流。基于 grsai API（gpt-image-2-vip）整页生成幻灯片图片并合成 PPTX，自动写入中文演讲稿备注，每页独立 prompt、独立生成、可单页迭代。触发场景：用户要做 PPT、幻灯片、汇报材料、演示文稿、路演/方案展示页。
+triggers:
+  - pattern: "PPT|ppt|幻灯片|汇报材料|演示文稿|演示文档|路演|做个?PPT|slides?"
+    description: "PPT/幻灯片制作请求"
+metadata:
+  openclaw:
+    primaryEnv: GRSAI_API_KEY
+---
 # image-ppt-workflow Skill
 
 > 基于 grsai API（gpt-image-2-vip）生成整页幻灯片图片，合成 PPTX。
@@ -348,6 +358,13 @@ python3 "$SKILL_DIR"/scripts/merge_to_pptx.py \
 **没有 manifest → 拒绝合成**（2026-06-13 起的硬门禁）。这是防退化机制：保证每张图都有真实生成证据（model/generated_at/task_id 等），不靠代码画图或裁原图局部凑数。
 
 输出文件名基于主题命名，不能统一用 output.pptx。
+
+**🔒 输出落点硬规则（2026-06-23 起）**：
+- `--output` 必须落在**项目目录内**（即 `~/image-ppt-workflow-workspace/<项目>/` 下），不能落到 workspace 根目录或其他位置。
+- 强烈建议传**绝对路径**：`--output ~/image-ppt-workflow-workspace/<项目>/<主题名>.pptx`，避免 cwd 漂移导致文件乱跑。
+- 合成前务必先 `cd ~/image-ppt-workflow-workspace/<项目>/`。
+- 脚本已加门禁：`--output` 目录不在 `--slides` 父目录（=项目根）内 → **直接拒绝合成（exit 1）**。
+- 旧项目/特殊情况需越界，才显式设置 `IMAGE_PPT_ALLOW_OUTSIDE_PROJECT=1`。
 
 ### Step 10: 单页迭代
 用户要求修改某一页时：修改 prompt → `generate.sh --image` 基于原图编辑再生 → 重新走 manifest 登记（自动去重）。
